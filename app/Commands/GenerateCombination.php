@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 class GenerateCombination extends Command
 {
@@ -23,43 +24,7 @@ class GenerateCombination extends Command
      *
      * @var string
      */
-    protected $description = 'Generate a combination.';
-
-    protected function getFilename()
-    {
-        if ($name = $this->argument('name')) {
-            return $name;
-        }
-
-        return $this->ask('Como você deseja salvar o arquivo?', "loteria");
-    }
-
-    protected function getNumbers()
-    {
-        $numbers = $this->hasOption('numbers')
-            ? $this->option('numbers')
-            : $this->ask("Quais são os números utilizados na combinação? (Separe por espaço)");
-
-        return new Collection(explode(' ', $numbers));
-    }
-
-    protected function getTickets()
-    {
-        if ($this->hasOption('tickets')) {
-            return intval($this->option('tickets'));
-        }
-
-        return intval($this->ask('Quantas combinações você deseja gerar?'));
-    }
-
-    protected function getNumbersPerTicket()
-    {
-        if ($this->hasOption('perticket')) {
-            return intval($this->option('perticket'));
-        }
-
-        return intval($this->ask('Quantos números devem haver em cada combinação?'));
-    }
+    protected $description = 'Generate combinations for lotteries.';
 
     /**
      * Execute the console command.
@@ -80,7 +45,7 @@ class GenerateCombination extends Command
 
         // Separe combinations in chunks of $maxCombinations, because we're not
         // going to use all combinations (probably).
-        $chunkSize = $allCombinations->count() / $maxCombinations;
+        $chunkSize = ceil($allCombinations->count() / $maxCombinations);
         $groups = $allCombinations->chunk($chunkSize);
 
         // Get one random combination for every chunk.
@@ -91,7 +56,6 @@ class GenerateCombination extends Command
         });
 
         $this->writeCsv($filename, $combos);
-        // $this->writeCsv($allCombinations);
     }
 
     public function sampling(Collection $numbers, int $size) {
@@ -121,13 +85,70 @@ class GenerateCombination extends Command
     public function writeCsv(string $filename, Collection $data)
     {
         $date = Carbon::now()->format('Y-m-d-Hms');
-        $file = fopen(base_path("/exports/{$filename}__{$date}.csv"), 'w');
 
-        $data->each(function ($numbers, $row) use ($file) {
-            $combName = 'COMB. ' . ($row + 1);
+        $contents = $data->map(function ($numbers, $row) {
+            $combName = 'COMB-' . ($row + 1);
 
-            fputcsv($file, array_merge([$combName], $numbers->toArray()));
+            return implode(',', array_merge([$combName], $numbers->toArray() ?? []));
         });
+
+        Storage::put("exports/{$filename}__{$date}.csv", $contents->implode(PHP_EOL));
+    }
+
+    /**
+     * Get the file name for the generated file.
+     *
+     * @return string
+     */
+    protected function getFilename(): string
+    {
+        if ($name = $this->argument('name')) {
+            return $name;
+        }
+
+        return $this->ask('Como você deseja salvar o arquivo?', "loteria");
+    }
+
+    /**
+     * Get the numbers to be used on combinations.
+     *
+     * @return Collection
+     */
+    protected function getNumbers(): Collection
+    {
+        $numbers = is_numeric($this->option('numbers'))
+            ? $this->option('numbers')
+            : $this->ask("Quais são os números utilizados na combinação? (Separe por espaço)");
+
+        return new Collection(explode(' ', $numbers));
+    }
+
+    /**
+     * Get how many tickets must be generated.
+     *
+     * @return int
+     */
+    protected function getTickets(): int
+    {
+        if (is_numeric($this->option('tickets'))) {
+            return intval($this->option('tickets'));
+        }
+
+        return intval($this->ask('Quantas combinações você deseja gerar?'));
+    }
+
+    /**
+     * Get how many nummbers must me added for every ticket.
+     *
+     * @return int
+     */
+    protected function getNumbersPerTicket(): int
+    {
+        if (is_numeric($this->option('perticket'))) {
+            return intval($this->option('perticket'));
+        }
+
+        return intval($this->ask('Quantos números devem haver em cada combinação?'));
     }
 
     /**
