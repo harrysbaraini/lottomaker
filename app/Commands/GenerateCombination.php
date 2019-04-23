@@ -5,9 +5,7 @@ namespace App\Commands;
 use Illuminate\Console\Scheduling\Schedule;
 use LaravelZero\Framework\Commands\Command;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 
 class GenerateCombination extends Command
@@ -82,6 +80,13 @@ class GenerateCombination extends Command
         return $combos;
     }
 
+    /**
+     * Generate the CSV file with generated combinations.
+     *
+     * @param string $filename
+     * @param Collection $data
+     * @return void
+     */
     public function writeCsv(string $filename, Collection $data)
     {
         $date = Carbon::now()->format('Y-m-d-Hms');
